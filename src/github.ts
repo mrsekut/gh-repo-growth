@@ -50,52 +50,46 @@ query($login: String!, $after: String) {
 export async function fetchRepos(
   token: string,
   username: string,
+  acc: Repo[] = [],
+  after: string | null = null,
 ): Promise<Repo[]> {
-  const repos: Repo[] = [];
-  let after: string | null = null;
+  const res = await fetch('https://api.github.com/graphql', {
+    method: 'POST',
+    headers: {
+      Authorization: `bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      query: REPOS_QUERY,
+      variables: { login: username, after },
+    }),
+  });
 
-  // eslint-disable-next-line no-constant-condition
-  while (true) {
-    const res = await fetch('https://api.github.com/graphql', {
-      method: 'POST',
-      headers: {
-        Authorization: `bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        query: REPOS_QUERY,
-        variables: { login: username, after },
-      }),
-    });
-
-    if (!res.ok) {
-      console.error(`Error: GitHub API returned ${res.status}`);
-      process.exit(1);
-    }
-
-    const json = (await res.json()) as {
-      data: {
-        user: {
-          repositories: {
-            pageInfo: { hasNextPage: boolean; endCursor: string };
-            nodes: Repo[];
-          };
-        };
-      };
-      errors?: { message: string }[];
-    };
-
-    if (json.errors) {
-      console.error(`Error: ${json.errors.map(e => e.message).join(', ')}`);
-      process.exit(1);
-    }
-
-    const { nodes, pageInfo } = json.data.user.repositories;
-    repos.push(...nodes);
-
-    if (!pageInfo.hasNextPage) break;
-    after = pageInfo.endCursor;
+  if (!res.ok) {
+    console.error(`Error: GitHub API returned ${res.status}`);
+    process.exit(1);
   }
 
-  return repos;
+  const json = (await res.json()) as {
+    data: {
+      user: {
+        repositories: {
+          pageInfo: { hasNextPage: boolean; endCursor: string };
+          nodes: Repo[];
+        };
+      };
+    };
+    errors?: { message: string }[];
+  };
+
+  if (json.errors) {
+    console.error(`Error: ${json.errors.map(e => e.message).join(', ')}`);
+    process.exit(1);
+  }
+
+  const { nodes, pageInfo } = json.data.user.repositories;
+  const repos = [...acc, ...nodes];
+
+  if (!pageInfo.hasNextPage) return repos;
+  return fetchRepos(token, username, repos, pageInfo.endCursor);
 }

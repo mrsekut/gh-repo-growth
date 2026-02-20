@@ -6,15 +6,15 @@ export type Repo = {
   isFork: boolean;
 };
 
-export type MonthlyEntry = {
-  month: string; // "YYYY-MM"
-  count: number; // repos created in this month
-  cumulative: number; // running total
-};
-
 export type AggregatedData = {
   entries: MonthlyEntry[];
   total: number;
+};
+
+type MonthlyEntry = {
+  month: string; // "YYYY-MM"
+  count: number; // repos created in this month
+  cumulative: number; // running total
 };
 
 export type FilterOpts = {
@@ -33,22 +33,30 @@ export function filterRepos(repos: Repo[], opts: FilterOpts): Repo[] {
 }
 
 export function aggregate(repos: Repo[]): AggregatedData {
-  const monthMap = new Map<string, number>();
-
-  for (const repo of repos) {
+  const monthMap = repos.reduce((acc, repo) => {
     const month = repo.createdAt.slice(0, 7); // "YYYY-MM"
-    monthMap.set(month, (monthMap.get(month) ?? 0) + 1);
-  }
+    acc.set(month, (acc.get(month) ?? 0) + 1);
+    return acc;
+  }, new Map<string, number>());
 
   const sortedMonths = [...monthMap.entries()].sort(([a], [b]) =>
     a.localeCompare(b),
   );
 
-  let cumulative = 0;
-  const entries: MonthlyEntry[] = sortedMonths.map(([month, count]) => {
-    cumulative += count;
-    return { month, count, cumulative };
-  });
+  const entries = sortedMonths.reduce<MonthlyEntry[]>(
+    (acc, [month, count]) => [
+      ...acc,
+      {
+        month,
+        count,
+        cumulative: (acc.at(-1)?.cumulative ?? 0) + count,
+      },
+    ],
+    [],
+  );
 
-  return { entries, total: cumulative };
+  return {
+    entries,
+    total: entries.at(-1)?.cumulative ?? 0,
+  };
 }
