@@ -30,6 +30,5 @@
     "prettier": "^3.8.1",
     "typescript": "^5.9.3"
   },
-  "module": "src/index.ts",
-  "private": true
+  "module": "src/index.ts"
 }
