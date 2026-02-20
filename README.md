@@ -34,6 +34,10 @@ bunx gh-repo-growth -u octocat
 bunx gh-repo-growth -o growth.html --exclude-archived
 ```
 
+## Example
+
+![Example output](https://gyazo.com/0050692a3ba6acbb1eb7210227093d00.png)
+
 ## Prerequisites
 
 - **[GitHub CLI (`gh`)](https://cli.github.com/)** installed and authenticated (`gh auth login`)
