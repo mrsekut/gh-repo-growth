@@ -1,0 +1,35 @@
+{
+  "name": "gh-repo-growth",
+  "version": "0.1.0",
+  "description": "Visualize GitHub repository creation growth as a self-contained HTML chart",
+  "type": "module",
+  "bin": {
+    "gh-repo-growth": "dist/index.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "bun run scripts/build.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "github",
+    "repository",
+    "growth",
+    "visualization",
+    "cli"
+  ],
+  "license": "MIT",
+  "devDependencies": {
+    "@types/bun": "latest",
+    "bun-types": "^1.3.9",
+    "prettier": "^3.8.1",
+    "typescript": "^5.9.3"
+  },
+  "module": "src/index.ts",
+  "private": true
+}
