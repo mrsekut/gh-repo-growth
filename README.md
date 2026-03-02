@@ -18,6 +18,8 @@ This fetches your repositories via the GitHub GraphQL API and outputs `repo_grow
     --include-forks      Include forked repositories
     --exclude-private    Exclude private repositories
     --exclude-archived   Exclude archived repositories
+    --repo <owner/name>  Track star history for specific repo (repeatable)
+    --since <YYYY-MM>    Start period for star data (used with --repo)
 -h, --help               Show this help message
 ```
 
@@ -32,6 +34,12 @@ bunx gh-repo-growth -u octocat
 
 # Custom output path with filters
 bunx gh-repo-growth -o growth.html --exclude-archived
+
+# Track star history for specific repos
+bunx gh-repo-growth --repo mrsekut/foo --repo mrsekut/bar
+
+# Star history from a specific date
+bunx gh-repo-growth --repo mrsekut/foo --since 2024-01
 ```
 
 ## Example
@@ -52,22 +60,8 @@ The generated HTML file is fully self-contained (only external dependency is Cha
 - Monthly creation bar chart
 - Yearly summary table
 - Stats cards (total repos, most active month, first repo date, time span)
-
-## Development
-
-```sh
-# Install dependencies
-bun install
-
-# Type check
-bun run typecheck
-
-# Build
-bun run build
-
-# Run locally
-bun run src/index.ts
-```
+- Stars by repository table (from repo metadata, no extra API calls)
+- Cumulative stars / monthly stars charts (when `--repo` is specified)
 
 ## License
 
