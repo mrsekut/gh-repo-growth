@@ -112,150 +112,277 @@
         border-radius: 3px;
         min-width: 2px;
       }
+      .bar-fill.gold {
+        background: #e3b341;
+      }
+      .stat-card .value.gold {
+        color: #e3b341;
+      }
+      .section-divider {
+        border: none;
+        border-top: 1px solid #30363d;
+        margin: 32px 0;
+      }
     </style>
   </head>
   <body>
     <h1>GitHub Repository Growth</h1>
     <p class="subtitle">{{SUBTITLE}}</p>
 
-    <div class="stats" id="stats"></div>
+    <div id="repoGrowthSection">
+      <div class="stats" id="stats"></div>
 
-    <div class="chart-container">
-      <div class="chart-title">Cumulative Repositories</div>
-      <canvas id="cumulativeChart"></canvas>
+      <div class="chart-container">
+        <div class="chart-title">Cumulative Repositories</div>
+        <canvas id="cumulativeChart"></canvas>
+      </div>
+
+      <div class="chart-container">
+        <div class="chart-title">Monthly Creations</div>
+        <canvas id="monthlyChart"></canvas>
+      </div>
+
+      <div class="chart-container">
+        <div class="chart-title">Yearly Summary</div>
+        <table class="year-table" id="yearTable">
+          <thead>
+            <tr>
+              <th>Year</th>
+              <th>Created</th>
+              <th>Cumulative</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
     </div>
 
-    <div class="chart-container">
-      <div class="chart-title">Monthly Creations</div>
-      <canvas id="monthlyChart"></canvas>
-    </div>
+    <div id="starSection" style="display: none">
+      <hr class="section-divider" />
 
-    <div class="chart-container">
-      <div class="chart-title">Yearly Summary</div>
-      <table class="year-table" id="yearTable">
-        <thead>
-          <tr>
-            <th>Year</th>
-            <th>Created</th>
-            <th>Cumulative</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody></tbody>
-      </table>
+      <div class="stats" id="starStats"></div>
+
+      <div class="chart-container">
+        <div class="chart-title">Cumulative Stars</div>
+        <canvas id="cumulativeStarChart"></canvas>
+      </div>
+
+      <div class="chart-container">
+        <div class="chart-title">Monthly Stars Gained</div>
+        <canvas id="monthlyStarChart"></canvas>
+      </div>
+
+      <div class="chart-container">
+        <div class="chart-title">Stars by Repository</div>
+        <table class="year-table" id="starRepoTable">
+          <thead>
+            <tr>
+              <th>Repository</th>
+              <th>Stars</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
     </div>
 
     <div class="footer">
-      Generated on {{GENERATED_DATE}} from GitHub GraphQL API (createdAt based)
+      Generated on {{GENERATED_DATE}} from GitHub GraphQL API
     </div>
 
     <script>
       const monthlyData = {{DATA}};
-
-      // Fill gaps with 0 for continuous timeline
-      const allMonths = [];
-      const start = new Date(monthlyData[0].m + "-01");
-      const end = new Date(monthlyData[monthlyData.length - 1].m + "-01");
-      const lookup = {};
-      monthlyData.forEach(d => { lookup[d.m] = d; });
-
-      let cumulative = 0;
-      for (let d = new Date(start); d <= end; d.setMonth(d.getMonth() + 1)) {
-        const key = d.toISOString().slice(0, 7);
-        if (lookup[key]) {
-          cumulative = lookup[key].c;
-          allMonths.push({ m: key, n: lookup[key].n, c: cumulative });
-        } else {
-          allMonths.push({ m: key, n: 0, c: cumulative });
-        }
-      }
-
-      // Stats
-      const total = allMonths[allMonths.length - 1].c;
-      const peakMonth = monthlyData.reduce((a, b) => a.n > b.n ? a : b);
-      const firstDate = monthlyData[0].m;
-      const years = Math.round((end - start) / (365.25 * 24 * 60 * 60 * 1000) * 10) / 10;
-
-      document.getElementById('stats').innerHTML = `
-        <div class="stat-card"><div class="label">Total Repos</div><div class="value">${total}</div></div>
-        <div class="stat-card"><div class="label">Most Active Month</div><div class="value green">${peakMonth.m}</div><div style="color:#8b949e;font-size:13px;margin-top:2px">${peakMonth.n} repos created</div></div>
-        <div class="stat-card"><div class="label">First Repo</div><div class="value purple" style="font-size:20px">${firstDate}</div></div>
-        <div class="stat-card"><div class="label">Span</div><div class="value orange">${years}yr</div></div>
-      `;
+      const starMonthlyData = {{STAR_DATA}};
+      const starReposData = {{STAR_REPOS}};
+      const starTotal = {{STAR_TOTAL}};
 
       // Chart colors
       const gridColor = '#21262d';
       const textColor = '#8b949e';
 
-      // Cumulative chart
-      new Chart(document.getElementById('cumulativeChart'), {
-        type: 'line',
-        data: {
-          labels: allMonths.map(d => d.m),
-          datasets: [{
-            label: 'Cumulative Repos',
-            data: allMonths.map(d => d.c),
-            borderColor: '#58a6ff',
-            backgroundColor: 'rgba(88,166,255,0.1)',
-            fill: true,
-            tension: 0.3,
-            pointRadius: 0,
-            pointHitRadius: 8,
-            borderWidth: 2
-          }]
-        },
-        options: {
-          responsive: true,
-          plugins: { legend: { display: false } },
-          scales: {
-            x: { ticks: { color: textColor, maxTicksLimit: 12 }, grid: { color: gridColor } },
-            y: { ticks: { color: textColor }, grid: { color: gridColor }, beginAtZero: true }
+      function fillGaps(data) {
+        const allMonths = [];
+        const start = new Date(data[0].m + "-01");
+        const end = new Date(data[data.length - 1].m + "-01");
+        const lookup = {};
+        data.forEach(d => { lookup[d.m] = d; });
+        let cumulative = 0;
+        for (let d = new Date(start); d <= end; d.setMonth(d.getMonth() + 1)) {
+          const key = d.toISOString().slice(0, 7);
+          if (lookup[key]) {
+            cumulative = lookup[key].c;
+            allMonths.push({ m: key, n: lookup[key].n, c: cumulative });
+          } else {
+            allMonths.push({ m: key, n: 0, c: cumulative });
           }
         }
-      });
+        return allMonths;
+      }
 
-      // Monthly bar chart
-      new Chart(document.getElementById('monthlyChart'), {
-        type: 'bar',
-        data: {
-          labels: allMonths.map(d => d.m),
-          datasets: [{
-            label: 'Repos Created',
-            data: allMonths.map(d => d.n),
-            backgroundColor: allMonths.map(d => d.n >= 5 ? '#3fb950' : d.n > 0 ? '#238636' : 'rgba(35,134,54,0.2)'),
-            borderRadius: 2,
-            barPercentage: 0.8
-          }]
-        },
-        options: {
-          responsive: true,
-          plugins: { legend: { display: false } },
-          scales: {
-            x: { ticks: { color: textColor, maxTicksLimit: 12 }, grid: { color: gridColor } },
-            y: { ticks: { color: textColor, stepSize: 1 }, grid: { color: gridColor }, beginAtZero: true }
+      // ── Repo Growth Section ──
+      if (monthlyData) {
+        const allMonths = fillGaps(monthlyData);
+        const total = allMonths[allMonths.length - 1].c;
+        const peakMonth = monthlyData.reduce((a, b) => a.n > b.n ? a : b);
+        const firstDate = monthlyData[0].m;
+        const start = new Date(monthlyData[0].m + "-01");
+        const end = new Date(monthlyData[monthlyData.length - 1].m + "-01");
+        const years = Math.round((end - start) / (365.25 * 24 * 60 * 60 * 1000) * 10) / 10;
+
+        document.getElementById('stats').innerHTML = `
+          <div class="stat-card"><div class="label">Total Repos</div><div class="value">${total}</div></div>
+          <div class="stat-card"><div class="label">Most Active Month</div><div class="value green">${peakMonth.m}</div><div style="color:#8b949e;font-size:13px;margin-top:2px">${peakMonth.n} repos created</div></div>
+          <div class="stat-card"><div class="label">First Repo</div><div class="value purple" style="font-size:20px">${firstDate}</div></div>
+          <div class="stat-card"><div class="label">Span</div><div class="value orange">${years}yr</div></div>
+        `;
+
+        new Chart(document.getElementById('cumulativeChart'), {
+          type: 'line',
+          data: {
+            labels: allMonths.map(d => d.m),
+            datasets: [{
+              label: 'Cumulative Repos',
+              data: allMonths.map(d => d.c),
+              borderColor: '#58a6ff',
+              backgroundColor: 'rgba(88,166,255,0.1)',
+              fill: true,
+              tension: 0.3,
+              pointRadius: 0,
+              pointHitRadius: 8,
+              borderWidth: 2
+            }]
+          },
+          options: {
+            responsive: true,
+            plugins: { legend: { display: false } },
+            scales: {
+              x: { ticks: { color: textColor, maxTicksLimit: 12 }, grid: { color: gridColor } },
+              y: { ticks: { color: textColor }, grid: { color: gridColor }, beginAtZero: true }
+            }
           }
-        }
-      });
+        });
 
-      // Year summary table
-      const yearMap = {};
-      monthlyData.forEach(d => {
-        const y = d.m.slice(0, 4);
-        if (!yearMap[y]) yearMap[y] = { count: 0, cumulative: 0 };
-        yearMap[y].count += d.n;
-        yearMap[y].cumulative = d.c;
-      });
-      const maxYear = Math.max(...Object.values(yearMap).map(v => v.count));
-      const tbody = document.querySelector('#yearTable tbody');
-      Object.entries(yearMap).forEach(([year, data]) => {
-        const pct = (data.count / maxYear * 100).toFixed(0);
-        tbody.innerHTML += `<tr>
-          <td style="font-weight:600">${year}</td>
-          <td>${data.count}</td>
-          <td>${data.cumulative}</td>
-          <td style="width:50%"><div class="bar-cell"><div class="bar-fill" style="width:${pct}%"></div><span style="color:#8b949e;font-size:12px">${data.count}</span></div></td>
-        </tr>`;
-      });
+        new Chart(document.getElementById('monthlyChart'), {
+          type: 'bar',
+          data: {
+            labels: allMonths.map(d => d.m),
+            datasets: [{
+              label: 'Repos Created',
+              data: allMonths.map(d => d.n),
+              backgroundColor: allMonths.map(d => d.n >= 5 ? '#3fb950' : d.n > 0 ? '#238636' : 'rgba(35,134,54,0.2)'),
+              borderRadius: 2,
+              barPercentage: 0.8
+            }]
+          },
+          options: {
+            responsive: true,
+            plugins: { legend: { display: false } },
+            scales: {
+              x: { ticks: { color: textColor, maxTicksLimit: 12 }, grid: { color: gridColor } },
+              y: { ticks: { color: textColor, stepSize: 1 }, grid: { color: gridColor }, beginAtZero: true }
+            }
+          }
+        });
+
+        const yearMap = {};
+        monthlyData.forEach(d => {
+          const y = d.m.slice(0, 4);
+          if (!yearMap[y]) yearMap[y] = { count: 0, cumulative: 0 };
+          yearMap[y].count += d.n;
+          yearMap[y].cumulative = d.c;
+        });
+        const maxYear = Math.max(...Object.values(yearMap).map(v => v.count));
+        const tbody = document.querySelector('#yearTable tbody');
+        Object.entries(yearMap).forEach(([year, data]) => {
+          const pct = (data.count / maxYear * 100).toFixed(0);
+          tbody.innerHTML += `<tr>
+            <td style="font-weight:600">${year}</td>
+            <td>${data.count}</td>
+            <td>${data.cumulative}</td>
+            <td style="width:50%"><div class="bar-cell"><div class="bar-fill" style="width:${pct}%"></div><span style="color:#8b949e;font-size:12px">${data.count}</span></div></td>
+          </tr>`;
+        });
+      } else {
+        document.getElementById('repoGrowthSection').style.display = 'none';
+      }
+
+      // ── Star History Section ──
+      if (starMonthlyData && starMonthlyData.length > 0) {
+        document.getElementById('starSection').style.display = 'block';
+
+        const allStarMonths = fillGaps(starMonthlyData);
+        const peakStarMonth = starMonthlyData.reduce((a, b) => a.n > b.n ? a : b);
+
+        document.getElementById('starStats').innerHTML = `
+          <div class="stat-card"><div class="label">Total Stars</div><div class="value gold">${starTotal}</div></div>
+          <div class="stat-card"><div class="label">Repos Tracked</div><div class="value">${starReposData.length}</div></div>
+          <div class="stat-card"><div class="label">Peak Month</div><div class="value gold">${peakStarMonth.m}</div><div style="color:#8b949e;font-size:13px;margin-top:2px">${peakStarMonth.n} stars</div></div>
+        `;
+
+        new Chart(document.getElementById('cumulativeStarChart'), {
+          type: 'line',
+          data: {
+            labels: allStarMonths.map(d => d.m),
+            datasets: [{
+              label: 'Cumulative Stars',
+              data: allStarMonths.map(d => d.c),
+              borderColor: '#e3b341',
+              backgroundColor: 'rgba(227,179,65,0.1)',
+              fill: true,
+              tension: 0.3,
+              pointRadius: 0,
+              pointHitRadius: 8,
+              borderWidth: 2
+            }]
+          },
+          options: {
+            responsive: true,
+            plugins: { legend: { display: false } },
+            scales: {
+              x: { ticks: { color: textColor, maxTicksLimit: 12 }, grid: { color: gridColor } },
+              y: { ticks: { color: textColor }, grid: { color: gridColor }, beginAtZero: true }
+            }
+          }
+        });
+
+        new Chart(document.getElementById('monthlyStarChart'), {
+          type: 'bar',
+          data: {
+            labels: allStarMonths.map(d => d.m),
+            datasets: [{
+              label: 'Stars Gained',
+              data: allStarMonths.map(d => d.n),
+              backgroundColor: allStarMonths.map(d => d.n >= 5 ? '#e3b341' : d.n > 0 ? '#d29922' : 'rgba(210,153,34,0.2)'),
+              borderRadius: 2,
+              barPercentage: 0.8
+            }]
+          },
+          options: {
+            responsive: true,
+            plugins: { legend: { display: false } },
+            scales: {
+              x: { ticks: { color: textColor, maxTicksLimit: 12 }, grid: { color: gridColor } },
+              y: { ticks: { color: textColor, stepSize: 1 }, grid: { color: gridColor }, beginAtZero: true }
+            }
+          }
+        });
+
+        // Stars by repository table
+        if (starReposData.length > 0) {
+          const maxStars = starReposData[0].stars;
+          const starTbody = document.querySelector('#starRepoTable tbody');
+          starReposData.forEach(repo => {
+            const pct = (repo.stars / maxStars * 100).toFixed(0);
+            starTbody.innerHTML += `<tr>
+              <td style="font-weight:600;font-size:13px">${repo.name}</td>
+              <td>${repo.stars}</td>
+              <td style="width:50%"><div class="bar-cell"><div class="bar-fill gold" style="width:${pct}%"></div><span style="color:#8b949e;font-size:12px">${repo.stars}</span></div></td>
+            </tr>`;
+          });
+        }
+      }
     </script>
   </body>
 </html>

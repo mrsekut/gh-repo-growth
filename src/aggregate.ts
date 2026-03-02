@@ -4,6 +4,7 @@ export type Repo = {
   isPrivate: boolean;
   isArchived: boolean;
   isFork: boolean;
+  stargazerCount: number;
 };
 
 export type AggregatedData = {
@@ -22,6 +23,87 @@ export type FilterOpts = {
   excludePrivate: boolean;
   excludeArchived: boolean;
 };
+
+export type StarFilterOpts = {
+  since?: string | undefined; // "YYYY-MM"
+  until?: string | undefined; // "YYYY-MM"
+};
+
+export type StarEntry = {
+  month: string; // "YYYY-MM"
+  count: number; // stars gained this month
+  cumulative: number;
+};
+
+export type RepoStarData = {
+  nameWithOwner: string;
+  stars: number; // total stars in the filtered period
+  timestamps: string[]; // ISO 8601 dates
+};
+
+export type StarAggregatedData = {
+  entries: StarEntry[];
+  repos: RepoStarData[];
+  total: number;
+};
+
+export function aggregateStars(
+  repoStars: RepoStarData[],
+  opts: StarFilterOpts,
+): StarAggregatedData {
+  // Collect all star timestamps across repos, filtered by since/until
+  const allTimestamps: string[] = [];
+  const filteredRepos: RepoStarData[] = [];
+
+  for (const repo of repoStars) {
+    const filtered = repo.timestamps.filter(ts => {
+      const month = ts.slice(0, 7);
+      if (opts.since && month < opts.since) return false;
+      if (opts.until && month > opts.until) return false;
+      return true;
+    });
+    filteredRepos.push({
+      nameWithOwner: repo.nameWithOwner,
+      stars: filtered.length,
+      timestamps: filtered,
+    });
+    allTimestamps.push(...filtered);
+  }
+
+  // Build month map
+  const monthMap = new Map<string, number>();
+  for (const ts of allTimestamps) {
+    const month = ts.slice(0, 7);
+    monthMap.set(month, (monthMap.get(month) ?? 0) + 1);
+  }
+
+  const sortedMonths = [...monthMap.entries()].sort(([a], [b]) =>
+    a.localeCompare(b),
+  );
+
+  const entries = sortedMonths.reduce<StarEntry[]>(
+    (acc, [month, count]) => [
+      ...acc,
+      {
+        month,
+        count,
+        cumulative: (acc.at(-1)?.cumulative ?? 0) + count,
+      },
+    ],
+    [],
+  );
+
+  // Sort repos by star count descending
+  const sortedRepos = filteredRepos
+    .filter(r => r.stars > 0)
+    .sort((a, b) => b.stars - a.stars);
+
+  return {
+    entries,
+    repos: sortedRepos,
+    total: entries.at(-1)?.cumulative ?? 0,
+  };
+}
 
 export function filterRepos(repos: Repo[], opts: FilterOpts): Repo[] {
   return repos.filter(r => {

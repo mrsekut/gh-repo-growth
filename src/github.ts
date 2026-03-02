@@ -1,5 +1,5 @@
 import { execSync } from 'node:child_process';
-import type { Repo } from './aggregate.js';
+import type { Repo, RepoStarData } from './aggregate.js';
 
 export function getToken(): string {
   try {
@@ -42,6 +42,7 @@ query($login: String!, $after: String) {
         isPrivate
         isArchived
         isFork
+        stargazerCount
       }
     }
   }
@@ -92,4 +93,109 @@ export async function fetchRepos(
 
   if (!pageInfo.hasNextPage) return repos;
   return fetchRepos(token, username, repos, pageInfo.endCursor);
+}
+
+const STARGAZERS_QUERY = `
+query($owner: String!, $name: String!, $after: String) {
+  repository(owner: $owner, name: $name) {
+    stargazers(first: 100, after: $after, orderBy: {field: STARRED_AT, direction: ASC}) {
+      pageInfo { hasNextPage endCursor }
+      edges {
+        starredAt
+      }
+    }
+  }
+}`;
+
+export async function fetchStargazers(
+  token: string,
+  owner: string,
+  name: string,
+  acc: string[] = [],
+  after: string | null = null,
+): Promise<string[]> {
+  const res = await fetch('https://api.github.com/graphql', {
+    method: 'POST',
+    headers: {
+      Authorization: `bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      query: STARGAZERS_QUERY,
+      variables: { owner, name, after },
+    }),
+  });
+
+  if (!res.ok) {
+    console.error(`Error: GitHub API returned ${res.status}`);
+    process.exit(1);
+  }
+
+  const json = (await res.json()) as {
+    data: {
+      repository: {
+        stargazers: {
+          pageInfo: { hasNextPage: boolean; endCursor: string };
+          edges: { starredAt: string }[];
+        };
+      };
+    };
+    errors?: { message: string }[];
+  };
+
+  if (json.errors) {
+    console.error(`Error: ${json.errors.map(e => e.message).join(', ')}`);
+    process.exit(1);
+  }
+
+  const { edges, pageInfo } = json.data.repository.stargazers;
+  const timestamps = [...acc, ...edges.map(e => e.starredAt)];
+
+  if (!pageInfo.hasNextPage) return timestamps;
+  return fetchStargazers(token, owner, name, timestamps, pageInfo.endCursor);
+}
+
+export async function fetchRepoStars(
+  token: string,
+  repoSlugs: string[],
+): Promise<RepoStarData[]> {
+  const results: RepoStarData[] = [];
+  for (const slug of repoSlugs) {
+    const [owner, name] = slug.split('/');
+    if (!owner || !name) {
+      console.error(`Error: Invalid repo format "${slug}". Use owner/name.`);
+      process.exit(1);
+    }
+    console.log(`Fetching stargazers for ${slug}...`);
+    const timestamps = await fetchStargazers(token, owner, name);
+    results.push({ nameWithOwner: slug, stars: timestamps.length, timestamps });
+  }
+  return results;
+}
+
+export async function fetchUserStars(
+  token: string,
+  repos: Repo[],
+): Promise<RepoStarData[]> {
+  const starred = repos
+    .filter(r => r.stargazerCount > 0)
+    .sort((a, b) => b.stargazerCount - a.stargazerCount)
+    .slice(0, 50);
+
+  console.log(
+    `Fetching star history for ${starred.length} repos (with stars)...`,
+  );
+
+  const results: RepoStarData[] = [];
+  for (const repo of starred) {
+    const [owner = '', name = ''] = repo.nameWithOwner.split('/');
+    console.log(`  ${repo.nameWithOwner} (${repo.stargazerCount} stars)...`);
+    const timestamps = await fetchStargazers(token, owner, name);
+    results.push({
+      nameWithOwner: repo.nameWithOwner,
+      stars: timestamps.length,
+      timestamps,
+    });
+  }
+  return results;
 }
