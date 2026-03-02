@@ -1,6 +1,6 @@
 {
   "name": "gh-repo-growth",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Visualize GitHub repository creation growth as a self-contained HTML chart",
   "type": "module",
   "bin": {
