@@ -163,19 +163,39 @@
 
       <div class="stats" id="starStats"></div>
 
-      <div class="chart-container">
-        <div class="chart-title">Cumulative Stars</div>
-        <canvas id="cumulativeStarChart"></canvas>
-      </div>
+      <div id="starChartsSection" style="display: none">
+        <div class="chart-container">
+          <div class="chart-title">Cumulative Stars</div>
+          <canvas id="cumulativeStarChart"></canvas>
+        </div>
 
-      <div class="chart-container">
-        <div class="chart-title">Monthly Stars Gained</div>
-        <canvas id="monthlyStarChart"></canvas>
+        <div class="chart-container">
+          <div class="chart-title">Monthly Stars Gained</div>
+          <canvas id="monthlyStarChart"></canvas>
+        </div>
+
+        <div
+          id="starRepoDetailSection"
+          class="chart-container"
+          style="display: none"
+        >
+          <div class="chart-title">Stars by Repository (detailed)</div>
+          <table class="year-table" id="starRepoDetailTable">
+            <thead>
+              <tr>
+                <th>Repository</th>
+                <th>Stars</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
       </div>
 
       <div class="chart-container">
         <div class="chart-title">Stars by Repository</div>
-        <table class="year-table" id="starRepoTable">
+        <table class="year-table" id="starSummaryTable">
           <thead>
             <tr>
               <th>Repository</th>
@@ -195,6 +215,7 @@
     <script>
       const monthlyData = {{DATA}};
       const starMonthlyData = {{STAR_DATA}};
+      const starSummaryData = {{STAR_SUMMARY}};
       const starReposData = {{STAR_REPOS}};
       const starTotal = {{STAR_TOTAL}};
 
@@ -309,73 +330,102 @@
       }
 
       // ── Star History Section ──
-      if (starMonthlyData && starMonthlyData.length > 0) {
+      const hasStarSummary = starSummaryData && starSummaryData.length > 0;
+      const hasStarTimeline = starMonthlyData && starMonthlyData.length > 0;
+
+      if (hasStarSummary || hasStarTimeline) {
         document.getElementById('starSection').style.display = 'block';
 
-        const allStarMonths = fillGaps(starMonthlyData);
-        const peakStarMonth = starMonthlyData.reduce((a, b) => a.n > b.n ? a : b);
-
-        document.getElementById('starStats').innerHTML = `
+        const repoCount = starSummaryData ? starSummaryData.length : (starReposData ? starReposData.length : 0);
+        let statsHtml = `
           <div class="stat-card"><div class="label">Total Stars</div><div class="value gold">${starTotal}</div></div>
-          <div class="stat-card"><div class="label">Repos Tracked</div><div class="value">${starReposData.length}</div></div>
-          <div class="stat-card"><div class="label">Peak Month</div><div class="value gold">${peakStarMonth.m}</div><div style="color:#8b949e;font-size:13px;margin-top:2px">${peakStarMonth.n} stars</div></div>
+          <div class="stat-card"><div class="label">Repos with Stars</div><div class="value">${repoCount}</div></div>
         `;
 
-        new Chart(document.getElementById('cumulativeStarChart'), {
-          type: 'line',
-          data: {
-            labels: allStarMonths.map(d => d.m),
-            datasets: [{
-              label: 'Cumulative Stars',
-              data: allStarMonths.map(d => d.c),
-              borderColor: '#e3b341',
-              backgroundColor: 'rgba(227,179,65,0.1)',
-              fill: true,
-              tension: 0.3,
-              pointRadius: 0,
-              pointHitRadius: 8,
-              borderWidth: 2
-            }]
-          },
-          options: {
-            responsive: true,
-            plugins: { legend: { display: false } },
-            scales: {
-              x: { ticks: { color: textColor, maxTicksLimit: 12 }, grid: { color: gridColor } },
-              y: { ticks: { color: textColor }, grid: { color: gridColor }, beginAtZero: true }
-            }
-          }
-        });
+        if (hasStarTimeline) {
+          const peakStarMonth = starMonthlyData.reduce((a, b) => a.n > b.n ? a : b);
+          statsHtml += `
+            <div class="stat-card"><div class="label">Peak Month</div><div class="value gold">${peakStarMonth.m}</div><div style="color:#8b949e;font-size:13px;margin-top:2px">${peakStarMonth.n} stars</div></div>
+          `;
+        }
+        document.getElementById('starStats').innerHTML = statsHtml;
 
-        new Chart(document.getElementById('monthlyStarChart'), {
-          type: 'bar',
-          data: {
-            labels: allStarMonths.map(d => d.m),
-            datasets: [{
-              label: 'Stars Gained',
-              data: allStarMonths.map(d => d.n),
-              backgroundColor: allStarMonths.map(d => d.n >= 5 ? '#e3b341' : d.n > 0 ? '#d29922' : 'rgba(210,153,34,0.2)'),
-              borderRadius: 2,
-              barPercentage: 0.8
-            }]
-          },
-          options: {
-            responsive: true,
-            plugins: { legend: { display: false } },
-            scales: {
-              x: { ticks: { color: textColor, maxTicksLimit: 12 }, grid: { color: gridColor } },
-              y: { ticks: { color: textColor, stepSize: 1 }, grid: { color: gridColor }, beginAtZero: true }
-            }
-          }
-        });
+        // Charts (only when --repo provides detailed timeline)
+        if (hasStarTimeline) {
+          document.getElementById('starChartsSection').style.display = 'block';
+          const allStarMonths = fillGaps(starMonthlyData);
 
-        // Stars by repository table
-        if (starReposData.length > 0) {
-          const maxStars = starReposData[0].stars;
-          const starTbody = document.querySelector('#starRepoTable tbody');
-          starReposData.forEach(repo => {
+          new Chart(document.getElementById('cumulativeStarChart'), {
+            type: 'line',
+            data: {
+              labels: allStarMonths.map(d => d.m),
+              datasets: [{
+                label: 'Cumulative Stars',
+                data: allStarMonths.map(d => d.c),
+                borderColor: '#e3b341',
+                backgroundColor: 'rgba(227,179,65,0.1)',
+                fill: true,
+                tension: 0.3,
+                pointRadius: 0,
+                pointHitRadius: 8,
+                borderWidth: 2
+              }]
+            },
+            options: {
+              responsive: true,
+              plugins: { legend: { display: false } },
+              scales: {
+                x: { ticks: { color: textColor, maxTicksLimit: 12 }, grid: { color: gridColor } },
+                y: { ticks: { color: textColor }, grid: { color: gridColor }, beginAtZero: true }
+              }
+            }
+          });
+
+          new Chart(document.getElementById('monthlyStarChart'), {
+            type: 'bar',
+            data: {
+              labels: allStarMonths.map(d => d.m),
+              datasets: [{
+                label: 'Stars Gained',
+                data: allStarMonths.map(d => d.n),
+                backgroundColor: allStarMonths.map(d => d.n >= 5 ? '#e3b341' : d.n > 0 ? '#d29922' : 'rgba(210,153,34,0.2)'),
+                borderRadius: 2,
+                barPercentage: 0.8
+              }]
+            },
+            options: {
+              responsive: true,
+              plugins: { legend: { display: false } },
+              scales: {
+                x: { ticks: { color: textColor, maxTicksLimit: 12 }, grid: { color: gridColor } },
+                y: { ticks: { color: textColor, stepSize: 1 }, grid: { color: gridColor }, beginAtZero: true }
+              }
+            }
+          });
+
+          // Detailed repo table from --repo
+          if (starReposData && starReposData.length > 0) {
+            document.getElementById('starRepoDetailSection').style.display = 'block';
+            const maxStars = starReposData[0].stars;
+            const detailTbody = document.querySelector('#starRepoDetailTable tbody');
+            starReposData.forEach(repo => {
+              const pct = (repo.stars / maxStars * 100).toFixed(0);
+              detailTbody.innerHTML += `<tr>
+                <td style="font-weight:600;font-size:13px">${repo.name}</td>
+                <td>${repo.stars}</td>
+                <td style="width:50%"><div class="bar-cell"><div class="bar-fill gold" style="width:${pct}%"></div><span style="color:#8b949e;font-size:12px">${repo.stars}</span></div></td>
+              </tr>`;
+            });
+          }
+        }
+
+        // Summary table (from stargazerCount, no extra API)
+        if (hasStarSummary) {
+          const maxStars = starSummaryData[0].stars;
+          const summaryTbody = document.querySelector('#starSummaryTable tbody');
+          starSummaryData.forEach(repo => {
             const pct = (repo.stars / maxStars * 100).toFixed(0);
-            starTbody.innerHTML += `<tr>
+            summaryTbody.innerHTML += `<tr>
               <td style="font-weight:600;font-size:13px">${repo.name}</td>
               <td>${repo.stars}</td>
               <td style="width:50%"><div class="bar-cell"><div class="bar-fill gold" style="width:${pct}%"></div><span style="color:#8b949e;font-size:12px">${repo.stars}</span></div></td>

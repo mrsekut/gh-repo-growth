@@ -3,6 +3,7 @@ import { resolve } from 'node:path';
 import type {
   AggregatedData,
   FilterOpts,
+  RepoStarSummary,
   StarAggregatedData,
 } from './aggregate.js';
 
@@ -13,6 +14,7 @@ export function generateHtml(
   data: AggregatedData | undefined,
   username: string,
   opts: FilterOpts,
+  starSummary: RepoStarSummary[],
   starData?: StarAggregatedData,
 ): string {
   const jsonData = data
@@ -31,7 +33,7 @@ export function generateHtml(
 
   const today = new Date().toISOString().slice(0, 10);
 
-  const starJson = starData
+  const starDataJson = starData
     ? JSON.stringify(
         starData.entries.map(e => ({
           m: e.month,
@@ -41,23 +43,30 @@ export function generateHtml(
       )
     : 'null';
 
+  const starSummaryJson =
+    starSummary.length > 0
+      ? JSON.stringify(
+          starSummary.map(r => ({ name: r.nameWithOwner, stars: r.stars })),
+        )
+      : 'null';
+
   const starReposJson = starData
     ? JSON.stringify(
-        starData.repos.map(r => ({
-          name: r.nameWithOwner,
-          stars: r.stars,
-        })),
+        starData.repos.map(r => ({ name: r.nameWithOwner, stars: r.stars })),
       )
     : 'null';
+
+  const totalStars = starSummary.reduce((sum, r) => sum + r.stars, 0);
 
   return getTemplate()
     .replace('{{DATA}}', jsonData)
     .replace(/\{\{USERNAME\}\}/g, username || 'Star History')
     .replace('{{SUBTITLE}}', subtitle)
     .replace('{{GENERATED_DATE}}', today)
-    .replace('{{STAR_DATA}}', starJson)
+    .replace('{{STAR_DATA}}', starDataJson)
+    .replace('{{STAR_SUMMARY}}', starSummaryJson)
     .replace('{{STAR_REPOS}}', starReposJson)
-    .replace('{{STAR_TOTAL}}', String(starData?.total ?? 0));
+    .replace('{{STAR_TOTAL}}', String(starData?.total ?? totalStars));
 }
 
 function getTemplate(): string {

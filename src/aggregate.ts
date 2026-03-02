@@ -26,7 +26,6 @@ export type FilterOpts = {
 
 export type StarFilterOpts = {
   since?: string | undefined; // "YYYY-MM"
-  until?: string | undefined; // "YYYY-MM"
 };
 
 export type StarEntry = {
@@ -47,11 +46,23 @@ export type StarAggregatedData = {
   total: number;
 };
 
+export type RepoStarSummary = {
+  nameWithOwner: string;
+  stars: number;
+};
+
+export function summarizeRepoStars(repos: Repo[]): RepoStarSummary[] {
+  return repos
+    .filter(r => r.stargazerCount > 0)
+    .map(r => ({ nameWithOwner: r.nameWithOwner, stars: r.stargazerCount }))
+    .sort((a, b) => b.stars - a.stars);
+}
+
 export function aggregateStars(
   repoStars: RepoStarData[],
   opts: StarFilterOpts,
 ): StarAggregatedData {
-  // Collect all star timestamps across repos, filtered by since/until
+  // Collect all star timestamps across repos, filtered by since
   const allTimestamps: string[] = [];
   const filteredRepos: RepoStarData[] = [];
 
@@ -59,7 +70,6 @@ export function aggregateStars(
     const filtered = repo.timestamps.filter(ts => {
       const month = ts.slice(0, 7);
       if (opts.since && month < opts.since) return false;
-      if (opts.until && month > opts.until) return false;
       return true;
     });
     filteredRepos.push({

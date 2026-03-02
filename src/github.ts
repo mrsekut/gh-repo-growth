@@ -172,30 +172,3 @@ export async function fetchRepoStars(
   }
   return results;
 }
-
-export async function fetchUserStars(
-  token: string,
-  repos: Repo[],
-): Promise<RepoStarData[]> {
-  const starred = repos
-    .filter(r => r.stargazerCount > 0)
-    .sort((a, b) => b.stargazerCount - a.stargazerCount)
-    .slice(0, 50);
-
-  console.log(
-    `Fetching star history for ${starred.length} repos (with stars)...`,
-  );
-
-  const results: RepoStarData[] = [];
-  for (const repo of starred) {
-    const [owner = '', name = ''] = repo.nameWithOwner.split('/');
-    console.log(`  ${repo.nameWithOwner} (${repo.stargazerCount} stars)...`);
-    const timestamps = await fetchStargazers(token, owner, name);
-    results.push({
-      nameWithOwner: repo.nameWithOwner,
-      stars: timestamps.length,
-      timestamps,
-    });
-  }
-  return results;
-}
