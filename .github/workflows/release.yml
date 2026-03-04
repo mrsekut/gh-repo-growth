@@ -25,9 +25,10 @@ jobs:
 
       - uses: oven-sh/setup-bun@v2
       - run: bun install --frozen-lockfile
+      - run: bun run build
 
       # npm 11.5.1以降が必要
       - name: Update npm
         run: npm install -g npm@latest
 
-      - run: npm publish
+      - run: npm publish --provenance --access public
