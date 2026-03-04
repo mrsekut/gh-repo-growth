@@ -23,6 +23,10 @@
     "visualization",
     "cli"
   ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mrsekut/gh-repo-growth"
+  },
   "license": "MIT",
   "devDependencies": {
     "@types/bun": "latest",
